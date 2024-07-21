@@ -24,6 +24,6 @@ public class MenuInicial {
         System.out.println("Duración " + Configuracion.TOTAL_DE_CICLOS + " ciclos");
         System.out.println(Configuracion.PLANTAS_INICIALES + " plantas iniciales");
         System.out.println(Configuracion.ANIMALES_INICIALES + " animales iniciales");
-        new Simulacion().ciclosDeLaSimulación(Configuracion.TOTAL_DE_CICLOS);
+        new Simulacion().ciclosDeLaSimulación(Configuracion.TOTAL_DE_CICLOS );
     }
 }

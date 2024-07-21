@@ -2,15 +2,19 @@ import java.util.ArrayList;
 /*
  Proyecto - Simulación de una isla, automáta celular
  Clase Isla - Crea la isla en una matriz predefinida y carga las celdas con los habitantes, se imprime la isla con los
- habitantes y su ubicación en cada celda.
+ habitantes y su ubicación en cada celda, ademas de gestionar sus acciones y registrar eventos.
  Autor - Mario García. mariogarcia1040@gmail.com
- 2-Julio-2024 | 18-Julio-2024
+ 2-Julio-2024 | 20-Julio-2024
 */
 public class Isla {
 
     private int[][] celdaDelTablero;
+
     public ArrayList<Planta> plantas = new ArrayList<>();
     public ArrayList<Animal> animales = new ArrayList<>();
+    String eventos = "";
+
+    RegistroEnArchivoCsv archivoCsv = new RegistroEnArchivoCsv();
 
     public void generaTablero() {
         celdaDelTablero = new int[Configuracion.NUMERO_DE_FILAS][Configuracion.NUMERO_DE_COLUMNAS];
@@ -20,8 +24,16 @@ public class Isla {
                 celdaDelTablero[i][j] = 0;
             }
         }
+        archivoCsv.crearArchivo();
+        System.out.println("Se crea isla, y archivo de registro csv");
+        archivoCsv.escribirEventosEnArchivoCsv("Tiempo;Animales;Plantas;Eventos;\n");
+
         agregarSeresVivosInicialesATablero(Configuracion.ANIMALES_INICIALES, 2);
         agregarSeresVivosInicialesATablero(Configuracion.PLANTAS_INICIALES, 1);
+        //eventos.add(0, "Inicio de simulación, se crea isla y seres vivos");
+        eventos = "Inicio de simulación, se crea isla y seres vivos";
+        registrarDatosYEventosDelCiclo(0);
+
     }
 
     // Se agregan los seres vivos, con el número determinado en la configuracion en tipoDeSerVivo 1 es planta y 2 es animal
@@ -65,7 +77,7 @@ public class Isla {
         }
     }
 
-    public int contarPlantas(boolean estaVivo) {
+    public int contarPlantas() {
         int totalEncontrados = 0;
         for (Planta planta : plantas) {
             if (planta.isEstaVivo()) {
@@ -75,7 +87,7 @@ public class Isla {
         return totalEncontrados;
     }
 
-    public int contarAnimales(boolean estaVivo) {
+    public int contarAnimales() {
         int totalEncontrados = 0;
         for (Animal animal : animales) {
             if (animal.isEstaVivo()) {
@@ -93,17 +105,18 @@ public class Isla {
         }
     }
 
-    public void incrementarEdadAnimal(int numeroDeCiclo) {
+    public void incrementarEdadAnimal() {
         for (Animal animal : animales) {
             if (animal.isEstaVivo()) {
                 animal.setEdad();
-            }
-            // animal muere de viejo
-            if (animal.getEdad() >= Configuracion.EDAD_MAXIMA_ANIMALES) {
-                animal.setEstaVivo(false);
+                // animal muere de viejo
+                if (animal.getEdad() >= Configuracion.EDAD_MAXIMA_ANIMALES) {
+                    animal.setEstaVivo(false);
+                    eventos = eventos + "Animal: " + animal.getIdentificador() + " muere por edad en celda ["
+                            + animal.getFila() + "-" + animal.getColumna() + "] | ";
+                }
             }
         }
-        System.out.println(numeroDeCiclo);
     }
 
     public void movimientoAnimal() {
@@ -115,9 +128,11 @@ public class Isla {
                 animal.setColumna(columna);
                 // Restar energía por cada movimiento
                 animal.setEnergia(false);
-            }
-            if (animal.getEnergia() <= 0) {
-                animal.setEstaVivo(false);
+                if (animal.getEnergia() == 0) {
+                    animal.setEstaVivo(false);
+                    eventos = eventos + "Animal: " + animal.getIdentificador() + " muere de hambre en celda ["
+                            + animal.getFila() + "-" + animal.getColumna() + " | ";
+                }
             }
         }
     }
@@ -163,9 +178,11 @@ public class Isla {
                         && animal.getColumna() == planta.getColumna()) {
                     planta.setEnergia(false);
                     animal.setEnergia(true);
-                }
-                if (planta.getEnergia() <= 0) {
-                    planta.setEstaVivo(false);
+                    if (planta.getEnergia() == 0) {
+                        planta.setEstaVivo(false);
+                        eventos = eventos + "Planta: " + planta.getIdentificador() + " devorada en celda ["
+                                + planta.getFila() + "-" + planta.getColumna() + "] | ";
+                    }
                 }
             }
         }
@@ -179,7 +196,17 @@ public class Isla {
                     // buscamos una celda vecina libre si existe nace un nuevo animal
                     if (buscarCeldaVecinaVacia(animales.get(i).getFila(), animales.get(i).getColumna())) {
                         animales.get(i).setEnergia(false);
-                        animales.get(j).setEstaVivo(false);
+                        animales.get(j).setEnergia(false);
+                        if (animales.get(i).isEstaVivo() && animales.get(i).getEnergia() <= 0) {
+                            animales.get(i).setEstaVivo(false);
+                            eventos = eventos + "Animal: " + animales.get(i).getIdentificador() + " muere despues de " +
+                                    "reproducirse en celda [" + animales.get(i).getFila() + "-" + animales.get(i).getColumna() + "] | ";
+                        }
+                        if (animales.get(j).isEstaVivo() && animales.get(j).getEnergia() <= 0) {
+                            animales.get(j).setEstaVivo(false);
+                            eventos = eventos + "Animal: " + animales.get(j).getIdentificador() + " muere despues de " +
+                                    "reproducirse en celda [" + animales.get(j).getFila() + "-" + animales.get(j).getColumna() + "] | ";
+                        }
                     }
                 }
             }
@@ -198,10 +225,18 @@ public class Isla {
             if (filaVecina >= 0 && filaVecina < Configuracion.NUMERO_DE_FILAS && columnaVecina >= 0
                     && columnaVecina < Configuracion.NUMERO_DE_COLUMNAS && celdaDelTablero[filaVecina][columnaVecina] == 0) {
                 animales.add(new Animal(filaVecina, columnaVecina, Configuracion.ENERGIA_INICIAL_ANIMALES, 0, true));
+                celdaDelTablero[filaVecina][columnaVecina] = 2;
+                eventos = eventos + "Nacimiento animal en celda [" + filaVecina + "-" + columnaVecina + "] | ";
                 return true;
             }
         }
         return false;
+    }
+
+    public void registrarDatosYEventosDelCiclo(int numeroDeCiclo) {
+        archivoCsv.escribirEventosEnArchivoCsv((numeroDeCiclo + 1) + ";" + contarPlantas() + ";"
+                + contarAnimales() + ";" + eventos + "\n");
+        eventos = "";
     }
 
 }
